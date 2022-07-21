@@ -3,10 +3,8 @@ import random
 from math import inf, sqrt, log
 
 from legion.helper import int_to_bytes
-
-KNOWN = set()
-INPUTS = set()
-RHO = 1
+from Legion import uct
+from Legion import naive
 
 class Arm:
     def __init__(self, node):
@@ -176,53 +174,3 @@ class Node:
                 self.yes.pp()
                 
 
-# higher is better
-def uct(w, n, N):
-    if not n:
-        return inf
-    else:
-        exploit = w / n
-        explore = RHO * sqrt(2 * log(N) / n)
-        return exploit + explore
-
-def naive(solver, target):
-    assert target
-    assert type(target) == list
-
-    if len(target) == 1:
-        target = target[0]
-    else:
-        target = z3.Concat(list(reversed(target)))
-
-    n = target.size()
-
-    delta = z3.BitVec("delta", n)
-    result = z3.BitVec("result", n)
-    solver.add(result == target)
-
-    solver.minimize(delta)
-
-    while True:
-        # print('---------------------------')
-        guess = z3.BitVecVal(random.getrandbits(n), n)
-
-        solver.push()
-        solver.add(result ^ delta == guess)
-
-        # for known in KNOWN:
-        #     if result.size() == known.size():
-        #         solver.add(result != known)
-
-        if solver.check() != z3.sat:
-            break
-
-        model = solver.model()
-        value = model[result]
-
-        sample = int_to_bytes(value.as_long(), n // 8)
-
-        solver.pop()
-
-        KNOWN.add(value)
-        INPUTS.add(sample)
-        yield sample

@@ -15,6 +15,8 @@ from legion.tree import *
 # constants
 BFS = True
 RHO = 1
+INPUTS = set()
+KNOWN = set()
 VERSION = "testcomp2022"
 BITS = 64
 
@@ -27,6 +29,60 @@ def zip_files(file, paths):
 def interrupt(number, frame):
     print("received SIGTERM")
     raise StopIteration()
+
+
+# higher is better
+def uct(w, n, N):
+    if not n:
+        return inf
+    else:
+        exploit = w / n
+        explore = RHO * sqrt(2 * log(N) / n)
+        return exploit + explore
+
+
+def naive(solver, target):
+    assert target
+    assert type(target) == list
+
+    if len(target) == 1:
+        target = target[0]
+    else:
+        target = z3.Concat(list(reversed(target)))
+
+    n = target.size()
+
+    delta = z3.BitVec("delta", n)
+    result = z3.BitVec("result", n)
+    solver.add(result == target)
+
+    solver.minimize(delta)
+
+    while True:
+        # print('---------------------------')
+        guess = z3.BitVecVal(random.getrandbits(n), n)
+
+        solver.push()
+        solver.add(result ^ delta == guess)
+
+        # for known in KNOWN:
+        #     if result.size() == known.size():
+        #         solver.add(result != known)
+
+        if solver.check() != z3.sat:
+            break
+
+        model = solver.model()
+        value = model[result]
+
+        sample = int_to_bytes(value.as_long(), n // 8)
+
+        solver.pop()
+
+        KNOWN.add(value)
+        INPUTS.add(sample)
+        yield sample
+        
 
 
 if __name__ == "__main__":   # here is the top-level code executed
