@@ -12,6 +12,7 @@ from legion.helper import *
 from legion.execution import *
 from legion.tree import *
 
+
 # constants
 BFS = True
 RHO = 1
@@ -85,7 +86,9 @@ def naive(solver, target):
         
 
 
-if __name__ == "__main__":   # here is the top-level code executed
+# here is the top-level code executed
+if __name__ == "__main__":
+
     # print version and finished
     if len(sys.argv) == 2 and (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
         print(VERSION)

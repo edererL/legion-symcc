@@ -6,21 +6,26 @@ from legion.helper import int_to_bytes
 from Legion import uct
 from Legion import naive
 
+
 class Arm:
+
     def __init__(self, node):
         self.node = node
 
         self.reward = 0
         self.selected = 0
 
+
     def score(self, N):
         return uct(self.reward, self.selected, N)
+
 
     def descr(self, N):
         return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
 
 
 class Node:
+
     def __init__(self, target, path, pos, neg, parent=None):
         self.site = None
 
@@ -54,6 +59,7 @@ class Node:
 
         if self.parent:
             self.parent.propagate(reward, selected, here=False)
+
 
     def insert(self, trace, is_complete):
         base = None
@@ -89,6 +95,7 @@ class Node:
 
         return base, node
 
+
     def sample(self):
         if not self.target:
             return b""  # no bytes to sample
@@ -107,6 +114,7 @@ class Node:
 
         except StopIteration:
             return None
+
 
     def select(self, bfs):
         if self.is_phantom:
@@ -143,10 +151,12 @@ class Node:
             else:
                 return node.select(bfs)
 
+
     def pp_legend(self):
         print("              local              subtree")
         print("    score  win  try      score  win  try    path")
         self.pp()
+
 
     def pp(self):
         if not self.parent:
@@ -172,5 +182,3 @@ class Node:
                 self.no.pp()
             if self.yes:
                 self.yes.pp()
-                
-

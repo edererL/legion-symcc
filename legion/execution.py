@@ -5,9 +5,11 @@ import random
 
 from legion.helper import int_to_bytes
 
+
 def run(*args):
     print(*args)
     return sp.run(args, stderr=sp.STDOUT)
+
 
 def compile_symcc(libs, source, binary, bits, coverage=False):
     cmd = ["clang"]
@@ -37,6 +39,7 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
     run(*cmd)
     print()
+
 
 def random_bytes(nbytes):
     return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
@@ -91,6 +94,7 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
     errs = list(process.stderr.readlines())
 
     return code, outs, errs, symcc_log, verifier_out
+    
 
 def constraint_from_string(ast, decls):
     try:

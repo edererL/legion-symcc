@@ -4,11 +4,14 @@ import subprocess as sp
 import datetime
 import os
 
+
 def random_bit():
     return random.getrandbits(1)
 
+
 def int_to_bytes(value, nbytes):
     return value.to_bytes(nbytes, "little")
+
 
 def sha256sum(file):
     res = sp.run(["sha256sum", file], stdout=sp.PIPE)
@@ -59,6 +62,7 @@ def write_testcase(source, path, identifier):
                     stream.write(line)
         stream.write("</testcase>\n")
 
+
 def gcov(gcda):
             cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
             proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -76,6 +80,7 @@ def try_remove(path):
             except:
                 pass
 
+
 def write_smt2_trace(ast, decls, path, identifier):
     decls = [x.decl().sexpr() for _, x in decls.items()]
     decls = sorted(decls)
@@ -89,6 +94,7 @@ def write_smt2_trace(ast, decls, path, identifier):
             stream.write("\n")
 
         stream.write(ast)
+
 
 def parseArguments():
     parser = argparse.ArgumentParser(description="Legion")
@@ -159,4 +165,4 @@ def parseArguments():
     )
 
     args = parser.parse_args()
-    return args
+    return args    
