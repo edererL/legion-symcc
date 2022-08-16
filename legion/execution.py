@@ -1,9 +1,8 @@
 import subprocess as sp
 import threading
 import z3
-import random
 
-from legion.helper import int_to_bytes
+from legion.helper import random_bytes
 
 
 def run(*args):
@@ -39,10 +38,6 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
     run(*cmd)
     print()
-
-
-def random_bytes(nbytes):
-    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
 
 
 def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None):

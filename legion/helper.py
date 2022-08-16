@@ -9,6 +9,10 @@ def random_bit():
     return random.getrandbits(1)
 
 
+def random_bytes(nbytes):
+    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
+
+
 def int_to_bytes(value, nbytes):
     return value.to_bytes(nbytes, "little")
 

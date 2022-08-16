@@ -1,8 +1,7 @@
 import z3
 import random
-from math import inf, sqrt, log
+from math import inf
 
-from legion.helper import int_to_bytes
 from Legion import uct
 from Legion import naive
 
@@ -22,6 +21,7 @@ class Arm:
 
     def descr(self, N):
         return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
+
 
 
 class Node:

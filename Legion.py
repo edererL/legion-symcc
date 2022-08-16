@@ -6,7 +6,7 @@ import random
 import sys
 import signal
 
-from math import sqrt, log, ceil, inf
+from math import sqrt, log, inf
 
 from legion.helper import *
 from legion.execution import *
@@ -135,6 +135,7 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGTERM, interrupt)
 
+
     while True:
         i += 1
 
@@ -188,10 +189,6 @@ if __name__ == "__main__":
                 print("signal: ", signal.Signals(-code).name)
             elif code != 0:
                 print("return code: ", code)
-                #Hier soll reach_error() abgefangen werden
-                # if code == 1:
-                #     print("reach_error() detected.")
-                #     break
 
             if outs:
                 if args.verbose:
@@ -274,9 +271,9 @@ if __name__ == "__main__":
     print("done")
     print()
 
-    # except:
-    #     print("error")
 
+    #final output
+    
     if not args.quiet:
         print("final tree")
         root.pp_legend()
