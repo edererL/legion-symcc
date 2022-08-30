@@ -6,11 +6,14 @@ from legion.helper import random_bytes
 
 
 def run(*args):
+    """Handles the execution"""
     print(*args)
     return sp.run(args, stderr=sp.STDOUT)
 
 
 def compile_symcc(libs, source, binary, bits, coverage=False):
+    """Handles the compilation of the particular components"""
+
     cmd = ["clang"]
 
     cmd.extend(["-Xclang", "-load", "-Xclang", libs + "/libSymbolize.so"])
@@ -41,6 +44,8 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
 
 def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None):
+    """Executes the binary with the computed input"""
+
     sp.run(["mkdir", "-p", path])
     # os.remove(path)
 
@@ -58,6 +63,8 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
     if maxlen:
         env["SYMCC_MAX_TRACE_LENGTH"] = str(maxlen)
 
+
+    # create a process
     process = sp.Popen(
         binary, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, close_fds=True, env=env
     )
@@ -66,9 +73,11 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
     process.stdin.write(data)
 
     def kill():
+        """Kill the process"""
         print("killed")
         process.kill()
 
+    # allows multiple tasks to run concurrently
     timer = threading.Timer(timeout, kill)
     try:
         timer.start()
@@ -92,6 +101,7 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
     
 
 def constraint_from_string(ast, decls):
+    """Return a string in SMT 2.0 format using the given sorts and decls"""
     try:
         return z3.parse_smt2_string(ast, decls=decls)
     except:
@@ -100,6 +110,7 @@ def constraint_from_string(ast, decls):
 
 
 def trace_from_file(trace):
+    """Compute the trace from file and return is_complete, last and result"""
     with open(trace, "rt") as stream:
         nbytes = 0
         target = []
@@ -117,32 +128,38 @@ def trace_from_file(trace):
         last = None
 
         def flush():
+            """clear the internal buffer of the file"""
             if pending:
                 # constraint = constraint_from_string(ast, decls)
                 event = (site, target, polarity, len(constraints))
                 result.append(event)
 
+                # append the assertion to the constraint list
                 ast = "(assert " + " ".join(pending) + ")"
                 constraints.append(ast)
 
                 pending.clear()
 
+        # read and return a list of lines from the stream
         for line in stream.readlines():
             line = line.strip()
 
             if not line:
                 continue
-
+            
+            # last stores the status (last line)
             last = line
             assert is_complete is None
 
             if line.startswith("in  "):
                 flush()
 
+                # number of input bytes
                 k = int(line[4:])
                 while nbytes < k:
+                    # generate the testcase:
                     n = "stdin" + str(nbytes)
-                    x = z3.BitVec(n, 8)
+                    x = z3.BitVec(n, 8) # return a bit-vector constant named n; number of bits = 8 
                     decls[n] = x
                     target.append(x)
                     nbytes = nbytes + 1

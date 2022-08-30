@@ -6,24 +6,30 @@ import os
 
 
 def random_bit():
+    """Generate a random bit"""
     return random.getrandbits(1)
 
 
-def random_bytes(nbytes):
-    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
-
-
 def int_to_bytes(value, nbytes):
+    """Converts an integer into an array of n bytes representing the integer"""
     return value.to_bytes(nbytes, "little")
 
 
+def random_bytes(nbytes):
+    """Generate n random bytes"""
+    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
+
+
 def sha256sum(file):
+    """"Compute the sha256 hash of a file"""
     res = sp.run(["sha256sum", file], stdout=sp.PIPE)
     out = res.stdout.decode("utf-8")
     return out[:64]
 
 
 def write_metadata(file, path, BITS):
+    """Write the metadata file"""
+
     sp.run(["mkdir", "-p", path])
 
     path = path + "/metadata.xml"
@@ -50,6 +56,8 @@ def write_metadata(file, path, BITS):
 
 
 def write_testcase(source, path, identifier):
+    """Write a testcase to the /tests folder"""
+
     sp.run(["mkdir", "-p", path])
     path = path + "/" + str(identifier) + ".xml"
 
@@ -68,23 +76,29 @@ def write_testcase(source, path, identifier):
 
 
 def gcov(gcda):
-            cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
-            proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            for line in proc.stdout.readlines():
-                line = line.decode("utf-8").rstrip()
-                print(line)
-                if line.startswith("Branches executed:"):
-                    cov = float(line[18:21]) # two digits of accuracy
-                    print("score: " + str(cov/100))
+    """Invoke gcov to compute the executed branches"""
+
+    cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
+    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    for line in proc.stdout.readlines():
+        line = line.decode("utf-8").rstrip()
+        print(line)
+        if line.startswith("Branches executed:"):
+            cov = float(line[18:21]) # two digits of accuracy
+            print("score: " + str(cov/100))
 
 
 def try_remove(path):
-            try:
-                os.remove(path)
-            except:
-                pass
+    """Try to remove a given path"""
+
+    try:
+        os.remove(path)
+    except:
+        pass
 
 
+# currently not used
 def write_smt2_trace(ast, decls, path, identifier):
     decls = [x.decl().sexpr() for _, x in decls.items()]
     decls = sorted(decls)
@@ -101,6 +115,8 @@ def write_smt2_trace(ast, decls, path, identifier):
 
 
 def parseArguments():
+    """Parse all arguments and return args"""
+
     parser = argparse.ArgumentParser(description="Legion")
     # parser.add_argument("-c", "--compile",
     #                     action='store_true',

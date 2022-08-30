@@ -16,10 +16,12 @@ class Arm:
 
 
     def score(self, N):
+        """Computes the score by means of the uct score function"""
         return uct(self.reward, self.selected, N)
 
 
     def descr(self, N):
+        """Describes the uct function and its parameters"""
         return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
 
 
@@ -45,11 +47,12 @@ class Node:
         self.is_phantom = True
 
         # statistics collected for sampling in this node and subtree, respectively
-        self.here = Arm(self)
-        self.tree = Arm(self)
+        self.here = Arm(self) # this node
+        self.tree = Arm(self) # subtree
 
 
     def propagate(self, reward, selected, here=True):
+        """Propagate reward and selected to a node and the residual tree"""
         if here:  # to this node
             self.here.reward += reward
             self.here.selected += selected
@@ -62,6 +65,8 @@ class Node:
 
 
     def insert(self, trace, is_complete):
+        """Insert a new node into the tree"""
+
         base = None
         node = self
 
@@ -71,13 +76,17 @@ class Node:
 
             site, target, polarity, phi = trace[index]
 
+            # node was a phantom node
             if was_phantom:
                 # yes = phi
                 # no = z3.Not(phi) # SLOOOOW (hash consing)
+
                 node.is_phantom = False
                 node.site = site
+
                 # node.yes = Node(target, node.path + "1", node.constraints + [yes], parent=node)
                 # node.no = Node(target, node.path + "0", node.constraints + [no], parent=node)
+
                 node.yes = Node(
                     target, node.path + "1", node.pos + [phi], node.neg, parent=node
                 )
@@ -97,6 +106,8 @@ class Node:
 
 
     def sample(self):
+        """Sample a node"""
+
         if not self.target:
             return b""  # no bytes to sample
 
@@ -117,6 +128,8 @@ class Node:
 
 
     def select(self, bfs):
+        """Select the most interesting node"""
+
         if self.is_phantom:
             return self
         else:
@@ -153,17 +166,23 @@ class Node:
 
 
     def pp_legend(self):
+        """Print the legend"""
         print("              local              subtree")
         print("    score  win  try      score  win  try    path")
         self.pp()
 
 
     def pp(self):
+        """Print the final output"""
+
         if not self.parent:
+            # root node
             key = "*"
         elif self.is_phantom:
+            # phantom node which has never been hit explicitly but we know it is there as the negation of another known node
             key = "?"
         else:
+            # regular internal node
             key = "."
 
         N = self.tree.selected
