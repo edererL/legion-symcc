@@ -45,6 +45,7 @@ class Node:
         self.sampler = None
 
         self.is_phantom = True
+        self.is_leaf = False
 
         # statistics collected for sampling in this node and subtree, respectively
         self.here = Arm(self) # this node
@@ -102,6 +103,11 @@ class Node:
         if not base and node.is_phantom:
             base = node
 
+        node.is_phantom = False
+
+        if is_complete:
+            node.is_leaf = True
+
         return base, node
 
 
@@ -131,12 +137,15 @@ class Node:
         """Select the most interesting node"""
 
         if self.is_phantom:
-            return self
+            return self            
         else:
-            if bfs:
-                options = [self.yes.tree, self.no.tree]
+            if self.is_leaf:
+                options = [self.tree]
             else:
-                options = [self.here, self.yes.tree, self.no.tree]
+                if bfs:
+                    options = [self.yes.tree, self.no.tree]
+                else:
+                    options = [self.here, self.yes.tree, self.no.tree]
 
             N = self.tree.selected
 
@@ -181,6 +190,9 @@ class Node:
         elif self.is_phantom:
             # phantom node which has never been hit explicitly but we know it is there as the negation of another known node
             key = "?"
+        elif self.is_leaf:
+            # leaf node
+            key = "$"
         else:
             # regular internal node
             key = "."
