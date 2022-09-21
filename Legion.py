@@ -166,7 +166,12 @@ if __name__ == "__main__":
             # sample the selected node -> sample()
             if args.verbose:
                 print("sampling...")
-            prefix = node.sample()
+
+            if i == 1:
+                # set first input to 0
+                prefix = b'\x00\x00\x00\x00\x00\x00\x00\x00'
+            else:
+                prefix = node.sample()
 
             if prefix is None:
                 # propagate the obtained information
