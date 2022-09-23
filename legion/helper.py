@@ -168,7 +168,7 @@ def parseArguments():
         "-a",
         "--adaptive",
         type=bool,
-        default=True,
+        default=False,
         help="adaptively increase maximum trace length (default: true if -m is not given",
     )
     parser.add_argument(

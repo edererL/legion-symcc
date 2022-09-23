@@ -141,6 +141,7 @@ if __name__ == "__main__":
     empty_testcase_written = False
     reach_error = False
     ntestcases = 0
+    ntimesleaf = 0
 
     # call interrupt when the termination signal is invoked
     signal.signal(signal.SIGTERM, interrupt)
@@ -162,6 +163,13 @@ if __name__ == "__main__":
             if args.verbose:
                 print("selecting")
             node = root.select(BFS)
+
+            if node.is_leaf:
+                ntimesleaf += 1
+                if ntimesleaf == 100:
+                    break
+                else: 
+                    continue
 
             # sample the selected node -> sample()
             if args.verbose:
@@ -194,9 +202,9 @@ if __name__ == "__main__":
                 maxlen = args.maxlen
 
             if args.adaptive or not args.maxlen:
-                if ntestcases < 100:
+                if i < 100:
                     maxlen = 100
-                elif ntestcases < 1000:
+                elif i < 1000:
                     maxlen = 1000
                 else:
                     maxlen = 10000

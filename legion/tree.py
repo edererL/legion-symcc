@@ -106,9 +106,8 @@ class Node:
         if not base and node.is_phantom:
             base = node
 
-        node.is_phantom = False
-
         if is_complete:
+            node.is_phantom = False
             node.is_leaf = True
 
         return base, node
@@ -142,13 +141,13 @@ class Node:
         if self.is_phantom:
             return self            
         else:
-            #if self.is_leaf:
-            #    options = [self.tree]
-            #else:
-            if bfs:
-                options = [self.yes.tree, self.no.tree]
+            if self.is_leaf:
+                return self
             else:
-                options = [self.here, self.yes.tree, self.no.tree]
+                if bfs:
+                    options = [self.yes.tree, self.no.tree]
+                else:
+                    options = [self.here, self.yes.tree, self.no.tree]
 
             N = self.tree.selected
 
