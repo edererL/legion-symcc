@@ -17,7 +17,10 @@ class Arm:
 
     def score(self, N):
         """Computes the score by means of the uct score function"""
-        return uct(self.reward, self.selected, N)
+        if self.node.is_leaf:
+            return -inf
+        else:
+            return uct(self.reward, self.selected, N)
 
 
     def descr(self, N):
