@@ -93,6 +93,8 @@ def naive(solver, target):
 
 if __name__ == "__main__":
 
+    k = 1
+
     # print version and terminate
     if len(sys.argv) == 2 and (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
         print(VERSION)
@@ -125,6 +127,9 @@ if __name__ == "__main__":
         binary = source
         source = binary + ".c"
 
+    if args.kExecutions:
+        k = args.kExecutions
+
     # z3_check_sparse_models()
 
     stem = os.path.basename(binary)
@@ -147,7 +152,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, interrupt)
 
 
-    # 
+    #  
     while True:
         i += 1
 
