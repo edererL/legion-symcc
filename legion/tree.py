@@ -142,13 +142,13 @@ class Node:
         if self.is_phantom:
             return self            
         else:
-            if self.is_leaf:
-                options = [self.tree]
+            #if self.is_leaf:
+            #    options = [self.tree]
+            #else:
+            if bfs:
+                options = [self.yes.tree, self.no.tree]
             else:
-                if bfs:
-                    options = [self.yes.tree, self.no.tree]
-                else:
-                    options = [self.here, self.yes.tree, self.no.tree]
+                options = [self.here, self.yes.tree, self.no.tree]
 
             N = self.tree.selected
 
