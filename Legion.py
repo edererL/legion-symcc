@@ -60,6 +60,7 @@ def naive(solver, target):
 
     delta = z3.BitVec("delta", n)
     result = z3.BitVec("result", n)
+
     solver.add(result == target)
 
     solver.minimize(delta)
@@ -143,10 +144,13 @@ if __name__ == "__main__":
     # try: i as the counter variable
     i = 0
 
+    kCounter = 0
     empty_testcase_written = False
     reach_error = False
     ntestcases = 0
     ntimesleaf = 0
+
+    last = None
 
     # call interrupt when the termination signal is invoked
     signal.signal(signal.SIGTERM, interrupt)
@@ -159,6 +163,9 @@ if __name__ == "__main__":
         # terminate when max iterations is reached
         if args.iterations and i >= args.iterations:
             print("max iterations")
+            break
+
+        if last == "error":
             break
 
         try:
@@ -180,11 +187,7 @@ if __name__ == "__main__":
             if args.verbose:
                 print("sampling...")
 
-            if i == 1:
-                # set first input to 0
-                prefix = b'\x00\x00\x00\x00\x00\x00\x00\x00'
-            else:
-                prefix = node.sample()
+            prefix = node.sample()
 
             if prefix is None:
                 # propagate the obtained information
@@ -218,91 +221,96 @@ if __name__ == "__main__":
                 maxlen = args.maxlen
 
             # call execute_with_input() and allocate the return values to the particular variables
-            code, outs, errs, symcc_log, verifier_out = execute_with_input(
-                binary, prefix, "traces/" + stem, i, args.timeout, maxlen
-            )
+            x = 0
+            for x in range(k):
+                kCounter += 1
 
-            # handle the obtained return code:
-            if -31 <= code and code < 0:
-                print("signal: ", signal.Signals(-code).name)
-            elif code != 0:
-                print("return code: ", code)
+                code, outs, errs, symcc_log, verifier_out = execute_with_input(
+                    binary, prefix, "traces/" + stem, kCounter, args.timeout, maxlen
+                )
+
+                # handle the obtained return code:
+                if -31 <= code and code < 0:
+                    print("signal: ", signal.Signals(-code).name)
+                elif code != 0:
+                    print("return code: ", code)
 
 
-            if outs:
-                if args.verbose:
-                    print("stdout:")
-                for line in outs:
-                    print(line.decode("utf-8").strip())
-
-            if errs:
-                if args.verbose:
-                    print("stderr:")
-                for line in errs:
-                    print(line.decode("utf-8").strip())
-
-            # get trace from file
-            try:
-                if args.verbose:
-                    print("parse trace", symcc_log)
-                is_complete, last, trace = trace_from_file(symcc_log)
-            except Exception as e:
-                node.propagate(0, 1)
-                if args.verbose:
-                    print("invalid trace", e)
-                continue
-
-            if not is_complete:
-                # node.propagate(0, 1)
-                if args.verbose:
-                    print("partial trace: ", last)
-                # continue
-
-            if not trace:
-                if not empty_testcase_written:
-                    # testcov wants an empty test case
+                if outs:
                     if args.verbose:
-                        print("write empty testcase")
-                    write_testcase(None, "tests/" + stem, i)
-                    empty_testcase_written = True
-                if args.verbose:
-                    print("deterministic")
-                continue
+                        print("stdout:")
+                    for line in outs:
+                        print(line.decode("utf-8").strip())
 
-            bits = ["1" if bit else "0" for (_, _, bit, _) in trace]
-            if args.verbose:
-                # path returned by binary execution
-                print("<", "".join(bits))
-
-            added, leaf = root.insert(trace, is_complete)
-            _, _, path, _ = zip(*trace)
-
-            # propagate reward and selected
-            if added:
-                node.propagate(1, 1)
-            else:
-                node.propagate(0, 1)
-
-            if added:
-                # not executed in error-mode: write testcase
-                if not args.error or code == 1:
+                if errs:
                     if args.verbose:
-                        print("write testcase", verifier_out)
-                    write_testcase(verifier_out, "tests/" + stem, i)
-                    ntestcases += 1
-                    # new path found and integrated into the tree
-                    print("+", leaf.path)
+                        print("stderr:")
+                    for line in errs:
+                        print(line.decode("utf-8").strip())
 
-                    # executed in error-mode: only store the error testcase and terminate  
-                    if last == "error" and args.error:
-                        reach_error = True
-                        print("reach_error() detected.")
-                        break
+                # get trace from file
+                try:
+                    if args.verbose:
+                        print("parse trace", symcc_log)
+                    is_complete, last, trace = trace_from_file(symcc_log)
+                except Exception as e:
+                    node.propagate(0, 1)
+                    if args.verbose:
+                        print("invalid trace", e)
+                    continue
 
-            elif not leaf.path.startswith(node.path):
-                # path failed to preserve the prefix chosen (approximate sampler)
-                print("!", leaf.path)
-                # raise Exception("failed to preserve prefix (naive sampler is precise)")
+                if not is_complete:
+                    # node.propagate(0, 1)
+                    if args.verbose:
+                        print("partial trace: ", last)
+                    # continue
+
+                if not trace:
+                    if not empty_testcase_written:
+                        # testcov wants an empty test case
+                        if args.verbose:
+                            print("write empty testcase")
+                        write_testcase(None, "tests/" + stem, i)
+                        empty_testcase_written = True
+                    if args.verbose:
+                        print("deterministic")
+                    continue
+
+                bits = ["1" if bit else "0" for (_, _, bit, _) in trace]
+                if args.verbose:
+                    # path returned by binary execution
+                    print("<", "".join(bits))
+
+                added, leaf = root.insert(trace, is_complete)
+                _, _, path, _ = zip(*trace)
+
+                # propagate reward and selected
+                if added:
+                    node.propagate(1, 1)
+                else:
+                    node.propagate(0, 1)
+
+                if added:
+                    # not executed in error-mode: write testcase
+                    if not args.error or code == 1:
+                        if args.verbose:
+                            print("write testcase", verifier_out)
+                        write_testcase(verifier_out, "tests/" + stem, kCounter)
+                        ntestcases += 1
+                        # new path found and integrated into the tree
+                        print("+", leaf.path)
+
+                        # executed in error-mode: only store the error testcase and terminate  
+                        if last == "error" and args.error:
+                            reach_error = True
+                            print("reach_error() detected.")
+                            break
+
+                elif not leaf.path.startswith(node.path):
+                    # path failed to preserve the prefix chosen (approximate sampler)
+                    print("!", leaf.path)
+                    # raise Exception("failed to preserve prefix (naive sampler is precise)")
+
         
         # handle exceptions or interruptions
         except KeyboardInterrupt:
