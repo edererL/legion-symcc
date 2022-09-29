@@ -3,12 +3,7 @@ import threading
 import z3
 
 from legion.helper import random_bytes
-
-
-def run(*args):
-    """Handles the execution"""
-    print(*args)
-    return sp.run(args, stderr=sp.STDOUT)
+from legion.helper import run
 
 
 def compile_symcc(libs, source, binary, bits, coverage=False):

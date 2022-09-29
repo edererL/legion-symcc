@@ -2,7 +2,9 @@ import random
 import argparse
 import subprocess as sp
 import datetime
+import signal
 import os
+
 
 
 def random_bit():
@@ -25,6 +27,18 @@ def sha256sum(file):
     res = sp.run(["sha256sum", file], stdout=sp.PIPE)
     out = res.stdout.decode("utf-8")
     return out[:64]
+
+
+def run(*args):
+    """Handles the execution"""
+    print(*args)
+    return sp.run(args, stderr=sp.STDOUT)
+
+
+def zip_files(file, paths):
+    """Zip files together"""
+    run("zip", "-r", file, *paths)
+    print()
 
 
 def write_metadata(file, path, BITS):
@@ -114,7 +128,7 @@ def write_smt2_trace(ast, decls, path, identifier):
         stream.write(ast)
 
 
-def parseArguments():
+def parse_arguments():
     """Parse all arguments and return args"""
 
     parser = argparse.ArgumentParser(description="Legion")
@@ -186,4 +200,85 @@ def parseArguments():
     )
 
     args = parser.parse_args()
-    return args    
+    return args   
+
+def handle_execution_return_values(code, outs, errs, verbose):
+    
+    if -31 <= code and code < 0:
+        print("signal: ", signal.Signals(-code).name)
+    elif code != 0:
+        print("return code: ", code)
+
+
+    if outs:
+        if verbose:
+            print("stdout:")
+        for line in outs:
+            print(line.decode("utf-8").strip())
+
+    if errs:
+        if verbose:
+            print("stderr:")
+        for line in errs:
+            print(line.decode("utf-8").strip())
+
+
+
+def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, testcov, zip, m32, source):
+    print("done")
+    print()
+
+
+    # final output
+
+    # print the final tree
+    if not quiet:
+        print("final tree")
+        root.pp_legend()
+        print()
+
+    # print number of tests
+    print("tests: " + str(ntestcases))
+    print()
+
+    # compute coverage information
+    if coverage:
+        stem = os.path.basename(binary)
+        gcda = stem + ".gcda"
+        gcov(gcda)
+        try_remove(gcda)
+        try_remove("__VERIFIER.gcda")
+
+    # print the error score
+    if error and reach_error:
+        print("score: 1")
+
+    # handle a execution in testcov mode 
+    if testcov or zip:
+        suite = "tests/" + stem + ".zip"
+        zip_files(suite, ["tests/" + stem])
+        print()
+
+        cmd = ["testcov"]
+
+        if m32:
+            cmd.append("-32")
+        else:
+            cmd.append("-64")
+
+        cmd.extend(
+            [
+                "--no-isolation",
+                "--no-plots",
+                "--timelimit-per-run",
+                "3",
+                "--test-suite",
+                suite,
+                source,
+            ]
+        )
+
+        if testcov:
+            run(*cmd)
+        else:
+            print(*cmd)

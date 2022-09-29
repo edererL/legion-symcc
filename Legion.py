@@ -22,12 +22,6 @@ VERSION = "testcomp2022"
 BITS = 64
 
 
-def zip_files(file, paths):
-    """Zip files together"""
-    run("zip", "-r", file, *paths)
-    print()
-
-
 def interrupt(number, frame):
     """Interrupt and stop interation"""
     print("received SIGTERM")
@@ -94,7 +88,15 @@ def naive(solver, target):
 
 if __name__ == "__main__":
 
+    # global variables
     k = 1
+    i = 0
+    kCounter = 0
+    empty_testcase_written = False
+    reach_error = False
+    ntestcases = 0
+    ntimesleaf = 0
+    last = None
 
     # print version and terminate
     if len(sys.argv) == 2 and (sys.argv[1] == "-v" or sys.argv[1] == "--version"):
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     # set the maximum depth of the Python interpreter stack to 1,000,000 
     sys.setrecursionlimit(1000 * 1000)
 
-    args = parseArguments()
+    args = parse_arguments()
 
     # initialize the random number generator
     random.seed(args.seed)
@@ -141,22 +143,11 @@ if __name__ == "__main__":
     # write the required metadata to the test folder
     write_metadata(source, "tests/" + stem, BITS)
 
-    # try: i as the counter variable
-    i = 0
-
-    kCounter = 0
-    empty_testcase_written = False
-    reach_error = False
-    ntestcases = 0
-    ntimesleaf = 0
-
-    last = None
-
     # call interrupt when the termination signal is invoked
     signal.signal(signal.SIGTERM, interrupt)
 
 
-    #  
+    # main loop 
     while True:
         i += 1
 
@@ -171,18 +162,21 @@ if __name__ == "__main__":
         try:
             # root.pp()
 
+            # 1. selection phase
             # select a suitable node -> select()
             if args.verbose:
                 print("selecting")
             node = root.select(BFS)
 
+            # is_leaf handling
             if node.is_leaf:
                 ntimesleaf += 1
                 if ntimesleaf == 100:
                     break
                 else: 
                     continue
-
+            
+            # 2. sampling phase
             # sample the selected node -> sample()
             if args.verbose:
                 print("sampling...")
@@ -199,9 +193,6 @@ if __name__ == "__main__":
             else:
                 # sample at the path, the input prefix should be shown on the right
                 print("?", node.path.ljust(32), "input: " + prefix.hex())
-
-            if args.verbose:
-                print("executing", binary)
 
             # manufacture requested trace constraints:
             maxlen = None
@@ -220,35 +211,23 @@ if __name__ == "__main__":
             if maxlen and args.maxlen and maxlen > args.maxlen:
                 maxlen = args.maxlen
 
-            # call execute_with_input() and allocate the return values to the particular variables
+            
             x = 0
             for x in range(k):
                 kCounter += 1
 
+                # 3. execution phase
+                if args.verbose:
+                    print("executing", binary)
+
+                # call execute_with_input() and allocate the return values to the particular variables
                 code, outs, errs, symcc_log, verifier_out = execute_with_input(
                     binary, prefix, "traces/" + stem, kCounter, args.timeout, maxlen
                 )
+                
+                handle_execution_return_values(code, outs, errs, args.verbose)
 
-                # handle the obtained return code:
-                if -31 <= code and code < 0:
-                    print("signal: ", signal.Signals(-code).name)
-                elif code != 0:
-                    print("return code: ", code)
-
-
-                if outs:
-                    if args.verbose:
-                        print("stdout:")
-                    for line in outs:
-                        print(line.decode("utf-8").strip())
-
-                if errs:
-                    if args.verbose:
-                        print("stderr:")
-                    for line in errs:
-                        print(line.decode("utf-8").strip())
-
-                # get trace from file
+                # 4. get trace from file
                 try:
                     if args.verbose:
                         print("parse trace", symcc_log)
@@ -281,10 +260,12 @@ if __name__ == "__main__":
                     # path returned by binary execution
                     print("<", "".join(bits))
 
+                # 5. insertion phase
                 added, leaf = root.insert(trace, is_complete)
                 _, _, path, _ = zip(*trace)
 
-                # propagate reward and selected
+
+                # 6. propagation phase
                 if added:
                     node.propagate(1, 1)
                 else:
@@ -326,60 +307,7 @@ if __name__ == "__main__":
                 root.pp_legend()
             raise e
 
-    print("done")
-    print()
-
-
-    # final output
-
-    # print the final tree
-    if not args.quiet:
-        print("final tree")
-        root.pp_legend()
-        print()
-
-    # print number of tests
-    print("tests: " + str(ntestcases))
-    print()
-
-    # compute coverage information
-    if args.coverage:
-        stem = os.path.basename(binary)
-        gcda = stem + ".gcda"
-        gcov(gcda)
-        try_remove(gcda)
-        try_remove("__VERIFIER.gcda")
-
-    # print the error score
-    if args.error and reach_error:
-        print("score: 1")
-
-    # handle a execution in testcov mode 
-    if args.testcov or args.zip:
-        suite = "tests/" + stem + ".zip"
-        zip_files(suite, ["tests/" + stem])
-        print()
-
-        cmd = ["testcov"]
-
-        if args.m32:
-            cmd.append("-32")
-        else:
-            cmd.append("-64")
-
-        cmd.extend(
-            [
-                "--no-isolation",
-                "--no-plots",
-                "--timelimit-per-run",
-                "3",
-                "--test-suite",
-                suite,
-                source,
-            ]
-        )
-
-        if args.testcov:
-            run(*cmd)
-        else:
-            print(*cmd)
+    # print final output
+    final_output(
+        args.quiet, root, ntestcases, args.coverage, binary, args.error, reach_error, args.testcov, args.zip, args.m32, source
+    )
