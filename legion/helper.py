@@ -224,7 +224,7 @@ def handle_execution_return_values(code, outs, errs, verbose):
 
 
 
-def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, testcov, zip, m32, source):
+def final_output(args, root, ntestcases, binary, reach_error, source):
     print("done")
     print()
 
@@ -232,7 +232,7 @@ def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, 
     # final output
 
     # print the final tree
-    if not quiet:
+    if not args.quiet:
         print("final tree")
         root.pp_legend()
         print()
@@ -242,7 +242,7 @@ def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, 
     print()
 
     # compute coverage information
-    if coverage:
+    if args.coverage:
         stem = os.path.basename(binary)
         gcda = stem + ".gcda"
         gcov(gcda)
@@ -250,18 +250,18 @@ def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, 
         try_remove("__VERIFIER.gcda")
 
     # print the error score
-    if error and reach_error:
+    if args.error and reach_error:
         print("score: 1")
 
     # handle a execution in testcov mode 
-    if testcov or zip:
+    if args.testcov or args.zip:
         suite = "tests/" + stem + ".zip"
         zip_files(suite, ["tests/" + stem])
         print()
 
         cmd = ["testcov"]
 
-        if m32:
+        if args.m32:
             cmd.append("-32")
         else:
             cmd.append("-64")
@@ -278,7 +278,7 @@ def final_output(quiet, root, ntestcases, coverage, binary, error, reach_error, 
             ]
         )
 
-        if testcov:
+        if args.testcov:
             run(*cmd)
         else:
             print(*cmd)

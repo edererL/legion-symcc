@@ -308,6 +308,4 @@ if __name__ == "__main__":
             raise e
 
     # print final output
-    final_output(
-        args.quiet, root, ntestcases, args.coverage, binary, args.error, reach_error, args.testcov, args.zip, args.m32, source
-    )
+    final_output(args, root, ntestcases, binary, reach_error, source)
