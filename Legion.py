@@ -171,7 +171,7 @@ if __name__ == "__main__":
             # is_leaf handling
             if node.is_leaf:
                 ntimesleaf += 1
-                if ntimesleaf == 100:
+                if not args.error and ntimesleaf == 10000:
                     break
                 else: 
                     continue
@@ -231,7 +231,8 @@ if __name__ == "__main__":
                 try:
                     if args.verbose:
                         print("parse trace", symcc_log)
-                    is_complete, last, trace = trace_from_file(symcc_log)
+                        
+                    is_complete, last, trace, decls = trace_from_file(symcc_log)
                 except Exception as e:
                     node.propagate(0, 1)
                     if args.verbose:
@@ -261,7 +262,7 @@ if __name__ == "__main__":
                     print("<", "".join(bits))
 
                 # 5. insertion phase
-                added, leaf = root.insert(trace, is_complete)
+                added, leaf = root.insert(trace, is_complete, decls)
                 _, _, path, _ = zip(*trace)
 
 

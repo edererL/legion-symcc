@@ -4,6 +4,7 @@ from math import inf
 
 from Legion import uct
 from Legion import naive
+from legion.execution import constraint_from_string
 
 
 class Arm:
@@ -68,7 +69,7 @@ class Node:
             self.parent.propagate(reward, selected, here=False)
 
 
-    def insert(self, trace, is_complete):
+    def insert(self, trace, is_complete, decls):
         """Insert a new node into the tree"""
 
         base = None
@@ -80,10 +81,15 @@ class Node:
 
             site, target, polarity, phi = trace[index]
 
+            #print("decls 1:", decls)
+            #print("phi 1:", phi)
+
             # node was a phantom node
             if was_phantom:
                 # yes = phi
                 # no = z3.Not(phi) # SLOOOOW (hash consing)
+
+                phi = constraint_from_string(phi, decls)[0]
 
                 node.is_phantom = False
                 node.site = site

@@ -4,6 +4,7 @@ import z3
 
 from legion.helper import random_bytes
 from legion.helper import run
+from legion.helper import write_smt2_trace
 
 
 def compile_symcc(libs, source, binary, bits, coverage=False):
@@ -100,7 +101,7 @@ def constraint_from_string(ast, decls):
     try:
         return z3.parse_smt2_string(ast, decls=decls)
     except:
-        # write_smt2_trace(ast, decls, "log", "error")
+        write_smt2_trace(ast, decls, "log", "error")
         raise ValueError("Z3 parser error", ast)
 
 
@@ -126,7 +127,7 @@ def trace_from_file(trace):
             """clear the internal buffer of the file"""
             if pending:
                 # constraint = constraint_from_string(ast, decls)
-                event = (site, target, polarity, len(constraints))
+                event = (site, target, polarity)
                 result.append(event)
 
                 # append the assertion to the constraint list
@@ -195,21 +196,22 @@ def trace_from_file(trace):
                 is_complete = False
 
             elif line.startswith("timeout"):
-                flush()
+                pending.clear()
+                #flush()
                 last = line
                 is_complete = False
 
             else:
                 pending.append(line)
 
-        flush()
+        #flush()
 
         # parse all the stuff
-        ast = "\n".join(constraints)
-        constraints = constraint_from_string(ast, decls)
+        #ast = "\n".join(constraints)
+        #constraints = constraint_from_string(ast, decls)
 
         for i in range(len(result)):
-            (site, target, polarity, index) = result[i]
-            result[i] = (site, target, polarity, constraints[index])
+            (site, target, polarity) = result[i]
+            result[i] = (site, target, polarity, constraints[i])
 
-        return (is_complete, last, result)
+        return (is_complete, last, result, decls)
