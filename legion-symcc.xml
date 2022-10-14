@@ -8,6 +8,7 @@
 
   <resultfiles>**.xml,**.txt</resultfiles>
   <option name="-a">True</option>
+  <option name="-k">10</option>
 
   <rundefinition name="Test-Comp22_coverage-error-call">
     <option name="-e" />

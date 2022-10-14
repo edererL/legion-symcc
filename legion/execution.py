@@ -1,17 +1,21 @@
+"""" imports """
 import subprocess as sp
 import threading
 import z3
 
 from legion.helper import random_bytes
-from legion.helper import run
-from legion.helper import write_smt2_trace
+
+
+def run(*args):
+    """Run arguments"""
+    print(*args)
+    return sp.run(args, stderr=sp.STDOUT)
 
 
 def compile_symcc(libs, source, binary, bits, coverage=False):
-    """Handles the compilation of the particular components"""
+    """Compile Legion/SymCC and the required components"""
 
     cmd = ["clang"]
-
     cmd.extend(["-Xclang", "-load", "-Xclang", libs + "/libSymbolize.so"])
 
     if bits == 32:
@@ -25,10 +29,9 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
     if coverage:
         cmd.append("--coverage")
+
     cmd.append("-fbracket-depth=1024")
-
     cmd.extend([source, "Verifier.cpp", "-o", binary])
-
     cmd.append("-lstdc++")
     cmd.append("-lm")
     cmd.append("-lSymRuntime")
@@ -40,17 +43,23 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
 
 def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None):
-    """Executes the binary with the computed input"""
+    """Execute the binary with samples and return obtained information"""
+
+    def kill():
+        """ Handle and kill the process"""
+        
+        print("killed")
+        process.kill()
 
     sp.run(["mkdir", "-p", path])
-    # os.remove(path)
+
+    # inputs
+    verifier_out = path + "/" + str(identifier) + ".out.txt"
+    # traces
+    symcc_log = path + "/" + str(identifier) + ".txt"
 
     env = {}
-
-    verifier_out = path + "/" + str(identifier) + ".out.txt"
     env["VERIFIER_STDOUT"] = verifier_out
-
-    symcc_log = path + "/" + str(identifier) + ".txt"
     env["SYMCC_LOG_FILE"] = symcc_log
 
     if timeout:
@@ -61,23 +70,15 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
 
 
     # create a process
-    process = sp.Popen(
-        binary, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, close_fds=True, env=env
-    )
+    process = sp.Popen(binary, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, close_fds=True, env=env)
 
-    # write initial input
+    # use prefix as input
     process.stdin.write(data)
 
-    def kill():
-        """Kill the process"""
-        print("killed")
-        process.kill()
-
-    # allows multiple tasks to run concurrently
+    # provide random input as further necessary
     timer = threading.Timer(timeout, kill)
     try:
         timer.start()
-        # provide random input as further necessary
         while process.poll() is None:
             try:
                 process.stdin.write(random_bytes(64))
@@ -94,68 +95,55 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
     errs = list(process.stderr.readlines())
 
     return code, outs, errs, symcc_log, verifier_out
-    
-
-def constraint_from_string(ast, decls):
-    """Return a string in SMT 2.0 format using the given sorts and decls"""
-    try:
-        return z3.parse_smt2_string(ast, decls=decls)
-    except:
-        write_smt2_trace(ast, decls, "log", "error")
-        raise ValueError("Z3 parser error", ast)
 
 
 def trace_from_file(trace):
-    """Compute the trace from file and return is_complete, last and result"""
+    """Readout the trace from file and return is_complete, last, result and decls"""
+
     with open(trace, "rt") as stream:
         nbytes = 0
         target = []
         decls = {}
-
         polarity = None
         site = None
         pending = []
-
         result = []
-
         constraints = []
-
         is_complete = None
         last = None
 
         def flush():
             """clear the internal buffer of the file"""
+
             if pending:
                 # constraint = constraint_from_string(ast, decls)
                 event = (site, target, polarity)
                 result.append(event)
 
-                # append the assertion to the constraint list
                 ast = "(assert " + " ".join(pending) + ")"
                 constraints.append(ast)
 
                 pending.clear()
 
-        # read and return a list of lines from the stream
+        # readout line by line
         for line in stream.readlines():
             line = line.strip()
 
             if not line:
                 continue
             
-            # last stores the status (last line)
             last = line
             assert is_complete is None
 
+            # handle the different components of the trace file
             if line.startswith("in  "):
                 flush()
 
-                # number of input bytes
+                # generate target
                 k = int(line[4:])
                 while nbytes < k:
-                    # generate the testcase:
                     n = "stdin" + str(nbytes)
-                    x = z3.BitVec(n, 8) # return a bit-vector constant named n; number of bits = 8 
+                    x = z3.BitVec(n, 8)
                     decls[n] = x
                     target.append(x)
                     nbytes = nbytes + 1
@@ -206,7 +194,6 @@ def trace_from_file(trace):
 
         #flush()
 
-        # parse all the stuff
         #ast = "\n".join(constraints)
         #constraints = constraint_from_string(ast, decls)
 
@@ -215,3 +202,10 @@ def trace_from_file(trace):
             result[i] = (site, target, polarity, constraints[i])
 
         return (is_complete, last, result, decls)
+
+
+def zip_files(file, paths):
+    """Zip files"""
+    
+    run("zip", "-r", file, *paths)
+    print()

@@ -1,10 +1,10 @@
+""" imports """
 import z3
 import random
 from math import inf
 
-from Legion import uct
-from Legion import naive
-from legion.execution import constraint_from_string
+from legion.helper import constraint_from_string
+from Legion import uct, naive
 
 
 class Arm:
@@ -17,16 +17,17 @@ class Arm:
 
 
     def score(self, N):
-        """Computes the score by means of the uct score function"""
+        """Computes the score in a uct way"""
+
         if self.node.is_leaf:
             return -inf
         else:
             return uct(self.reward, self.selected, N)
 
 
-    def descr(self, N):
-        """Describes the uct function and its parameters"""
-        return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
+    #def descr(self, N):
+    #    """Describe the uct function and its parameters"""
+    #    return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
 
 
 
@@ -34,31 +35,26 @@ class Node:
 
     def __init__(self, target, path, pos, neg, parent=None):
         self.site = None
-
         self.target = target
         self.nbytes = len(target)
-
         self.path = path
         self.pos = pos
         self.neg = neg
-
         self.parent = parent
         self.yes = None
         self.no = None
-
         self.sampler = None
-
         self.is_phantom = True
         self.is_leaf = False
 
-        # statistics collected for sampling in this node and subtree, respectively
-        self.here = Arm(self) # this node
-        self.tree = Arm(self) # subtree
+        self.here = Arm(self) 
+        self.tree = Arm(self)
 
 
     def propagate(self, reward, selected, here=True):
-        """Propagate reward and selected to a node and the residual tree"""
-        if here:  # to this node
+        """Propagate reward and selected"""
+
+        if here:
             self.here.reward += reward
             self.here.selected += selected
 
@@ -70,39 +66,24 @@ class Node:
 
 
     def insert(self, trace, is_complete, decls):
-        """Insert a new node into the tree"""
+        """Insert new nodes into the tree"""
 
         base = None
         node = self
 
         for index in range(len(trace)):
-            # print(index)
-            was_phantom = node.is_phantom
 
+            was_phantom = node.is_phantom
             site, target, polarity, phi = trace[index]
 
-            #print("decls 1:", decls)
-            #print("phi 1:", phi)
-
-            # node was a phantom node
             if was_phantom:
-                # yes = phi
-                # no = z3.Not(phi) # SLOOOOW (hash consing)
-
                 phi = constraint_from_string(phi, decls)[0]
 
                 node.is_phantom = False
                 node.site = site
 
-                # node.yes = Node(target, node.path + "1", node.constraints + [yes], parent=node)
-                # node.no = Node(target, node.path + "0", node.constraints + [no], parent=node)
-
-                node.yes = Node(
-                    target, node.path + "1", node.pos + [phi], node.neg, parent=node
-                )
-                node.no = Node(
-                    target, node.path + "0", node.pos, node.neg + [phi], parent=node
-                )
+                node.yes = Node(target, node.path + "1", node.pos + [phi], node.neg, parent=node)
+                node.no = Node(target, node.path + "0", node.pos, node.neg + [phi], parent=node)
 
                 if not base:
                     base = node
@@ -129,14 +110,12 @@ class Node:
             solver = z3.Optimize()
             solver.add(self.pos)
             solver.add([z3.Not(phi) for phi in self.neg])
-            # print("target     ", self.target, " with size", self.nbytes)
-            # print("constraints", self.constraints)
+
             self.sampler = naive(solver, self.target)
 
         try:
             sample = next(self.sampler)
             return sample
-
         except StopIteration:
             return None
 
@@ -156,10 +135,6 @@ class Node:
                     options = [self.here, self.yes.tree, self.no.tree]
 
             N = self.tree.selected
-
-            # print([arm.descr(N) for arm in options])
-            # print([arm.score(N) for arm in options])
-
             candidates = []
             best = -inf
 
@@ -183,14 +158,15 @@ class Node:
 
 
     def pp_legend(self):
-        """Print the legend"""
+        """Pretty print the legend"""
+
         print("              local              subtree")
         print("    score  win  try      score  win  try    path")
         self.pp()
 
 
     def pp(self):
-        """Print the final output"""
+        """Pretty print the final output"""
 
         if not self.parent:
             # root node

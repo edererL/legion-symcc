@@ -1,48 +1,53 @@
-import random
+""" imports """
 import argparse
 import subprocess as sp
 import datetime
-import signal
+import z3
+import random
 import os
 
 
+def parse_arguments():
+    """Parse all the arguments and return args"""
 
-def random_bit():
-    """Generate a random bit"""
-    return random.getrandbits(1)
+    parser = argparse.ArgumentParser(description="Legion/SymCC")
 
+    parser.add_argument("file", help="C source file")
 
-def int_to_bytes(value, nbytes):
-    """Converts an integer into an array of n bytes representing the integer"""
-    return value.to_bytes(nbytes, "little")
+    parser.add_argument("-c", "--coverage", action="store_true", help="generate coverage information")
+    parser.add_argument("-e", "--error", action="store_true", help="execute in cover-error mode")
+    parser.add_argument("-k", dest="kExecutions", type=int, help="number of executions per solver solution (default: 1)")
+    parser.add_argument("-r", "--rho", type=int, help="exploration factor (default: 1)")
+    parser.add_argument("-s", "--seed", type=int, default=0, help="random seed")
+    parser.add_argument("-q", "--quiet", action="store_true", help="less output")
+    parser.add_argument("-V", "--verbose", action="store_true", help="more output")
+    parser.add_argument("-z", "--zip", action="store_true", help="zip test suite")
+    parser.add_argument("-64", dest="m64", action="store_true", help="compile with -m64 (override platform default)")
+    parser.add_argument("-32", dest="m32", action="store_true", help="compile with -m32 (override platform default)")
+    parser.add_argument("-i", "--iterations", type=int, default=None, help="number of iterations (samples to generate)")
+    parser.add_argument("-t", "--timeout", type=int, default=3, help="binary execution timeout in seconds (default: 3)")
+    parser.add_argument("-m", "--maxlen", type=int, default=None, help="maximum trace length (default: none)")
+    parser.add_argument("-a", "--adaptive", type=bool, default=False, help="adaptively increase maximum trace length (default: true if -m is not given")
+    parser.add_argument("-L", dest="library", default="lib", help="location of SymCC compiler and runtime libraries")
+    parser.add_argument("-T", "--testcov", action="store_true", help="run testcov (implies -z)")
 
+    # idea: integrate a compile flag
+    # parser.add_argument("-c", "--compile", action='store_true', help='compile binary (requires modified symcc on path, otherwise assume it has been compiled before)')
 
-def random_bytes(nbytes):
-    """Generate n random bytes"""
-    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
+    args = parser.parse_args()
+    return args
 
 
 def sha256sum(file):
-    """"Compute the sha256 hash of a file"""
+    """"Compute the sha256 hash of file and return it"""
+
     res = sp.run(["sha256sum", file], stdout=sp.PIPE)
     out = res.stdout.decode("utf-8")
     return out[:64]
 
 
-def run(*args):
-    """Handles the execution"""
-    print(*args)
-    return sp.run(args, stderr=sp.STDOUT)
-
-
-def zip_files(file, paths):
-    """Zip files together"""
-    run("zip", "-r", file, *paths)
-    print()
-
-
 def write_metadata(file, path, BITS):
-    """Write the metadata file"""
+    """Write the required metadata to tests/"""
 
     sp.run(["mkdir", "-p", path])
 
@@ -52,9 +57,7 @@ def write_metadata(file, path, BITS):
 
     with open(path, "wt") as stream:
         stream.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')
-        stream.write(
-            '<!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.1//EN" "https://sosy-lab.org/test-format/test-metadata-1.1.dtd">\n'
-        )
+        stream.write('<!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.1//EN" "https://sosy-lab.org/test-format/test-metadata-1.1.dtd">\n')
         stream.write("<test-metadata>\n")
         stream.write("  <sourcecodelang>C</sourcecodelang>\n")
         stream.write("  <producer>Legion/SymCC</producer>\n")
@@ -63,14 +66,19 @@ def write_metadata(file, path, BITS):
         stream.write("  <programhash>{}</programhash>\n".format(sha256sum(file)))
         stream.write("  <entryfunction>main</entryfunction>\n")
         stream.write("  <architecture>{}bit</architecture>\n".format(BITS))
-        stream.write(
-            "  <creationtime>{}</creationtime>\n".format(datetime.datetime.now())
-        )
+        stream.write("  <creationtime>{}</creationtime>\n".format(datetime.datetime.now()))
         stream.write("</test-metadata>\n")
 
 
+def interrupt(number, frame):
+    """Handle signal and stop iteration"""
+
+    print("received SIGTERM")
+    raise StopIteration()
+
+
 def write_testcase(source, path, identifier):
-    """Write a testcase to the /tests folder"""
+    """Write test case to the tests/"""
 
     sp.run(["mkdir", "-p", path])
     path = path + "/" + str(identifier) + ".xml"
@@ -78,10 +86,9 @@ def write_testcase(source, path, identifier):
     with open(path, "wt") as stream:
         stream.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')
         stream.write(
-            '<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.1//EN" "https://sosy-lab.org/test-format/testcase-1.1.dtd">\n'
-        )
-        stream.write("<testcase>\n")
+            '<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.1//EN" "https://sosy-lab.org/test-format/testcase-1.1.dtd">\n')
 
+        stream.write("<testcase>\n")
         if source:
             with open(source, "rt") as dump:
                 for line in dump.readlines():
@@ -89,31 +96,9 @@ def write_testcase(source, path, identifier):
         stream.write("</testcase>\n")
 
 
-def gcov(gcda):
-    """Invoke gcov to compute the executed branches"""
-
-    cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
-    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-
-    for line in proc.stdout.readlines():
-        line = line.decode("utf-8").rstrip()
-        print(line)
-        if line.startswith("Branches executed:"):
-            cov = float(line[18:21]) # two digits of accuracy
-            print("score: " + str(cov/100))
-
-
-def try_remove(path):
-    """Try to remove a given path"""
-
-    try:
-        os.remove(path)
-    except:
-        pass
-
-
-# currently not used
 def write_smt2_trace(ast, decls, path, identifier):
+    """write the smt2 trace"""
+
     decls = [x.decl().sexpr() for _, x in decls.items()]
     decls = sorted(decls)
 
@@ -128,157 +113,46 @@ def write_smt2_trace(ast, decls, path, identifier):
         stream.write(ast)
 
 
-def parse_arguments():
-    """Parse all arguments and return args"""
-
-    parser = argparse.ArgumentParser(description="Legion")
-    # parser.add_argument("-c", "--compile",
-    #                     action='store_true',
-    #                     help='compile binary (requires modified symcc on path, otherwise assume it has been compiled before)')
-    parser.add_argument("file", help="C source file")
-    parser.add_argument(
-        "-c", "--coverage", action="store_true", help="generate coverage information"
-    )
-    parser.add_argument("-e", "--error", action="store_true", help="execute in cover-error mode")
-    parser.add_argument("-k", dest="kExecutions", type=int, help="number of executions per solver solution (default: 1)")
-    parser.add_argument("-r", "--rho", type=int, help="exploration factor (default: 1)")
-    parser.add_argument("-s", "--seed", type=int, default=0, help="random seed")
-    parser.add_argument("-q", "--quiet", action="store_true", help="less output")
-    parser.add_argument("-V", "--verbose", action="store_true", help="more output")
-    parser.add_argument("-z", "--zip", action="store_true", help="zip test suite")
-    parser.add_argument(
-        "-64",
-        dest="m64",
-        action="store_true",
-        help="compile with -m64 (override platform default)",
-    )
-    parser.add_argument(
-        "-32",
-        dest="m32",
-        action="store_true",
-        help="compile with -m32 (override platform default)",
-    )
-    parser.add_argument(
-        "-i",
-        "--iterations",
-        type=int,
-        default=None,
-        help="number of iterations (samples to generate)",
-    )
-    parser.add_argument(
-        "-t",
-        "--timeout",
-        type=int,
-        default=3,
-        help="binary execution timeout in seconds (default: 3)",
-    )
-    parser.add_argument(
-        "-m",
-        "--maxlen",
-        type=int,
-        default=None,
-        help="maximum trace length (default: none)",
-    )
-    parser.add_argument(
-        "-a",
-        "--adaptive",
-        type=bool,
-        default=False,
-        help="adaptively increase maximum trace length (default: true if -m is not given",
-    )
-    parser.add_argument(
-        "-L",
-        dest="library",
-        default="lib",
-        help="location of SymCC compiler and runtime libraries",
-    )
-    parser.add_argument(
-        "-T",
-        "--testcov",
-        action="store_true",
-        help="run testcov (implies -z)",
-    )
-
-    args = parser.parse_args()
-    return args   
-
-def handle_execution_return_values(code, outs, errs, verbose):
-    
-    if -31 <= code and code < 0:
-        print("signal: ", signal.Signals(-code).name)
-    elif code != 0:
-        print("return code: ", code)
+def constraint_from_string(ast, decls):
+    """Return a string in smt2 format"""
+    try:
+        return z3.parse_smt2_string(ast, decls=decls)
+    except:
+        # write log if exception occurred
+        write_smt2_trace(ast, decls, "log", "error")
+        raise ValueError("Z3 parser error", ast)
 
 
-    if outs:
-        if verbose:
-            print("stdout:")
-        for line in outs:
-            print(line.decode("utf-8").strip())
+def int_to_bytes(value, nbytes):
+    """Converts an integer into an array of n bytes representing the integer"""
 
-    if errs:
-        if verbose:
-            print("stderr:")
-        for line in errs:
-            print(line.decode("utf-8").strip())
+    return value.to_bytes(nbytes, "little")
 
 
+def random_bytes(nbytes):
+    """Generate n random bytes and return them"""
 
-def final_output(args, root, ntestcases, binary, reach_error, source):
-    print("done")
-    print()
+    return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
 
 
-    # final output
+def gcov(gcda):
+    """Invoke gcov to compute coverage"""
 
-    # print the final tree
-    if not args.quiet:
-        print("final tree")
-        root.pp_legend()
-        print()
+    cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
+    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    # print number of tests
-    print("tests: " + str(ntestcases))
-    print()
+    for line in proc.stdout.readlines():
+        line = line.decode("utf-8").rstrip()
+        print(line)
+        if line.startswith("Branches executed:"):
+            cov = float(line[18:21]) # two digits of accuracy
+            print("score: " + str(cov/100))
 
-    # compute coverage information
-    if args.coverage:
-        stem = os.path.basename(binary)
-        gcda = stem + ".gcda"
-        gcov(gcda)
-        try_remove(gcda)
-        try_remove("__VERIFIER.gcda")
 
-    # print the error score
-    if args.error and reach_error:
-        print("score: 1")
+def try_remove(path):
+    """Try to remove path"""
 
-    # handle a execution in testcov mode 
-    if args.testcov or args.zip:
-        suite = "tests/" + stem + ".zip"
-        zip_files(suite, ["tests/" + stem])
-        print()
-
-        cmd = ["testcov"]
-
-        if args.m32:
-            cmd.append("-32")
-        else:
-            cmd.append("-64")
-
-        cmd.extend(
-            [
-                "--no-isolation",
-                "--no-plots",
-                "--timelimit-per-run",
-                "3",
-                "--test-suite",
-                suite,
-                source,
-            ]
-        )
-
-        if args.testcov:
-            run(*cmd)
-        else:
-            print(*cmd)
+    try:
+        os.remove(path)
+    except:
+        pass
