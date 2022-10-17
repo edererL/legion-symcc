@@ -152,8 +152,6 @@ if __name__ == "__main__":
             print("max iterations")
             break
 
-        # last == error?
-
         try:
 
             """ 1. selection phase """
