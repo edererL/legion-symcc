@@ -2,7 +2,9 @@
 import sys
 import os
 import signal
+import time
 from math import sqrt, log
+from tracemalloc import start
 
 from legion.helper import parse_arguments, write_metadata, interrupt, write_testcase, int_to_bytes, gcov, try_remove
 from legion.execution import compile_symcc, execute_with_input, trace_from_file, zip_files, run
@@ -80,9 +82,10 @@ def naive(solver, target):
 if __name__ == "__main__":
 
     """global variables"""
+    start = time.time()
     iteration = 0
     ntracefile = 0
-    ntestcases = 0
+    ntestcases = 0  
     last = None
     reach_error = False
 
@@ -119,6 +122,10 @@ if __name__ == "__main__":
     if args.maxlen:
         maxlen = args.maxlen
 
+    finishtime = None
+    if args.finish:
+        finishtime = args.finish * 60
+    
     k = 1
     if args.kExecutions:
         k = args.kExecutions
@@ -130,7 +137,6 @@ if __name__ == "__main__":
 
     # write metadata.xml to tests/
     write_metadata(source, "tests/" + stem, BITS)
-
 
 
     # write empty test case for testcov
@@ -150,6 +156,10 @@ if __name__ == "__main__":
         # terminate when max iterations is reached
         if args.iterations and iteration >= args.iterations:
             print("max iterations")
+            break
+
+        if args.finish and time.time() > start + finishtime:
+            print ("max execution time")
             break
 
         try:
@@ -292,7 +302,7 @@ if __name__ == "__main__":
                     print("!", leaf.path)
 
             # abort if the error case is detected
-            if last == "error":
+            if last == "error" and args.error:
                 break
 
         # handle exceptions
