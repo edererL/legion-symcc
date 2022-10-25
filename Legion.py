@@ -122,7 +122,7 @@ if __name__ == "__main__":
     if args.maxlen:
         maxlen = args.maxlen
 
-    finishtime = None
+    finishtime = 15
     if args.finish:
         finishtime = args.finish * 60
     
