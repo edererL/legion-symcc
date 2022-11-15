@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.9//EN" "http://www.sosy-lab.org/benchexec/benchmark-1.9.dtd">
-<benchmark tool="legion-symcc" displayName="Legion/SymCC" timelimit="1 min" memlimit="4 GB" cpuCores="1">
+<benchmark tool="legion-symcc" displayName="Legion/SymCC" timelimit="2 min" memlimit="4 GB" cpuCores="1">
 
   <!-- <require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="1" /> -->
   <!-- <require cpuModel="Intel Core i7-6700 @ 3.40 GHz" cpuCores="1" /> -->
@@ -9,6 +9,7 @@
   <resultfiles>**.xml</resultfiles>
   <option name="-q"/>
 
+  <option name="-f">60</option>
   <option name="-a">True</option>
   <!-- <option name="-k">55</option> -->
 

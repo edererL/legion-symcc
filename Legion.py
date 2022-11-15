@@ -12,7 +12,7 @@ from legion.tree import *
 
 
 """ constants """
-VERSION = "testcomp2022"
+VERSION = "testcomp2023"
 RHO = 1
 BITS = 64
 BFS = True
@@ -122,9 +122,9 @@ if __name__ == "__main__":
     if args.maxlen:
         maxlen = args.maxlen
 
-    finishtime = 15
+    finishtime = 900
     if args.finish:
-        finishtime = args.finish * 60
+        finishtime = args.finish
     
     k = 1
     if args.kExecutions:

@@ -35,5 +35,7 @@ docker: lib/libSymbolize.so lib/libSymRuntime.so lib32/libSymRuntime.so
 	./docker-cp.sh
 
 archive:
-	cp -r legion.sh Legion.py __VERIFIER.c ubuntu2004 dist ../testcomp-archives-2022/2022/legion-symcc
-	(cd ../testcomp-archives-2022/2022/; zip legion-symcc.zip legion-symcc/ -r)
+	rm legion/__pycache__ -rf
+	mkdir -p ../testcomp-archives-2023/2023/legion-symcc
+	cp -r legion.sh Legion.py Verifier.cpp legion lib lib32 dist ../testcomp-archives-2023/2023/legion-symcc
+	(cd ../testcomp-archives-2023/2023/; zip legion-symcc.zip legion-symcc/ -r)
