@@ -396,6 +396,10 @@ Expr * _sym_build_float_to_unsigned_integer(Expr * expr, uint8_t bits) {
     return EXPR(fun, bits, &g_rm_zero, expr);
 }
 
+Expr * _sym_build_bool_to_bit(Expr * expr) {
+    return _sym_build_bool_to_bits(expr, 1);
+}
+
 Expr * _sym_build_bool_to_bits(Expr * expr, uint8_t bits) {
     Expr * one = _sym_build_integer(1, bits);
     Expr * zero = _sym_build_integer(0, bits);
