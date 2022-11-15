@@ -187,7 +187,8 @@ if __name__ == "__main__":
                 continue
             else:
                 # sample at the path, the input prefix should be shown on the right
-                print("?", node.path.ljust(32), "input: " + prefix.hex())
+                if not args.quiet:
+                    print("?", node.path.ljust(32), "input: " + prefix.hex())
 
             # adapt maximum trace length
             if args.adaptive or not args.maxlen:
@@ -211,13 +212,19 @@ if __name__ == "__main__":
                 if args.verbose:
                     print("executing", binary)
 
-                code, outs, errs, symcc_log, verifier_out = execute_with_input(binary, prefix, "traces/" + stem, ntracefile, args.timeout, maxlen)
+                if args.quiet:
+                    traceid = "trace"
+                else:
+                    traceid = ntracefile
+
+                code, outs, errs, symcc_log, verifier_out = execute_with_input(binary, prefix, "traces/" + stem, traceid, args.timeout, maxlen)
 
                 # handle code
-                if -31 <= code and code < 0:
-                    print("signal: ", signal.Signals(-code).name)
-                elif code != 0:
-                    print("return code: ", code)
+                if args.verbose:
+                    if -31 <= code and code < 0:
+                        print("signal: ", signal.Signals(-code).name)
+                    elif code != 0:
+                        print("return code: ", code)
 
                 # handle outs
                 if outs:
@@ -230,8 +237,8 @@ if __name__ == "__main__":
                 if errs:
                     if args.verbose:
                         print("stderr:")
-                    for line in errs:
-                        print(line.decode("utf-8").strip())
+                        for line in errs:
+                            print(line.decode("utf-8").strip())
 
                 """ 4. readout trace from file """
                 try:
@@ -288,7 +295,8 @@ if __name__ == "__main__":
                         write_testcase(verifier_out, "tests/" + stem, iteration)
                         ntestcases += 1
                         # new path found and integrated into the tree
-                        print("+", leaf.path)
+                        if not args.quiet:
+                            print("+", leaf.path)
 
                         # handle error case
                         if last == "error" and args.error:
@@ -299,7 +307,8 @@ if __name__ == "__main__":
 
                 elif not leaf.path.startswith(node.path):
                     # path failed to preserve the prefix chosen (approximate sampler)
-                    print("!", leaf.path)
+                    if not args.quiet:
+                        print("!", leaf.path)
 
             # abort if the error case is detected
             if last == "error" and args.error:
@@ -315,8 +324,9 @@ if __name__ == "__main__":
         except Exception as e:
             if args.verbose:
                 print()
-                print("current tree")
-                root.pp_legend()
+                if not args.quiet:
+                    print("current tree")
+                    root.pp_legend()
             raise e
 
 
