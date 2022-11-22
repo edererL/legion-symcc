@@ -106,17 +106,20 @@ if __name__ == "__main__":
 
     source = args.file
     is_c = source[-2:] == ".c" or source[-2:] == ".i"
-    if is_c:
-        binary = source[:-2]
-        compile_symcc(args.library, source, binary, BITS, args.coverage)
-    else:
-        binary = source
-        source = binary + ".c"
 
     if args.m32:
         BITS = 32
     elif args.m64:
         BITS = 64
+
+    if is_c:
+        binary = args.binary if args.binary else source[:-2]
+        object = source[:-2]
+        compile_symcc(args.library, source, binary, BITS, args.coverage)
+    else:
+        binary = source
+        object = source
+        source = binary + ".c"
     
     maxlen = None
     if args.maxlen:
@@ -136,13 +139,12 @@ if __name__ == "__main__":
     root = Node([], "", [], [])
 
     # write metadata.xml to tests/
+    print("write metadata")
     write_metadata(source, "tests/" + stem, BITS)
 
 
     # write empty test case for testcov
-    if args.verbose:
-        print("write empty testcase...")
-
+    print("write empty testcase")
     write_testcase(None, "tests/" + stem, iteration)
 
 
@@ -291,7 +293,8 @@ if __name__ == "__main__":
                     if not args.error or code == 1:
                         if args.verbose:
                             print("write testcase", verifier_out)
-
+                        else:
+                            print("write testcase", ntestcases)
                         write_testcase(verifier_out, "tests/" + stem, iteration)
                         ntestcases += 1
                         # new path found and integrated into the tree
@@ -300,6 +303,7 @@ if __name__ == "__main__":
 
                         # handle error case
                         if last == "error" and args.error:
+                            print("write testcase", ntestcases, "(error found)")
                             write_testcase(verifier_out, "tests/" + stem, iteration)
                             reach_error = True
                             print("reach_error() detected.")
@@ -344,11 +348,12 @@ if __name__ == "__main__":
 
     # compute coverage information
     if args.coverage:
-        stem = os.path.basename(binary)
+        print("computing coverage")
+        stem = os.path.basename(object)
         gcda = stem + ".gcda"
         gcov(gcda)
         try_remove(gcda)
-        try_remove("__VERIFIER.gcda")
+        try_remove("Verifier.gcda")
 
     # print the error score
     if args.error and reach_error:

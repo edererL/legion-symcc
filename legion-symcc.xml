@@ -4,7 +4,8 @@
 
   <!-- <require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="1" /> -->
   <!-- <require cpuModel="Intel Core i7-6700 @ 3.40 GHz" cpuCores="1" /> -->
-  <!-- <require cpuModel="Intel Core i7-10700" cpuCores="1" /> -->
+  <require cpuModel="Intel Core i7-10700 @ 2.90 GHz" cpuCores="1" />
+  
 
   <resultfiles>**.xml</resultfiles>
   <option name="-q"/>

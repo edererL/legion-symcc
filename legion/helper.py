@@ -14,6 +14,7 @@ def parse_arguments():
 
     parser.add_argument("file", help="C source file")
 
+    parser.add_argument("-b", "--binary", help="specify binary file name (default: C file without extension)")
     parser.add_argument("-c", "--coverage", action="store_true", help="generate coverage information")
     parser.add_argument("-e", "--error", action="store_true", help="execute in cover-error mode")
     parser.add_argument("-k", dest="kExecutions", type=int, help="number of executions per solver solution (default: 1)")
@@ -140,6 +141,7 @@ def gcov(gcda):
     """Invoke gcov to compute coverage"""
 
     cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
+    print(*cmd)
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
     for line in proc.stdout.readlines():
