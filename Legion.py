@@ -12,10 +12,9 @@ from legion.tree import *
 
 
 """ constants """
-VERSION = "testcomp2022"
+VERSION = "testcomp2023"
 RHO = 1
 BITS = 64
-BFS = True
 INPUTS = set()
 KNOWN = set()
 
@@ -106,25 +105,33 @@ if __name__ == "__main__":
 
     source = args.file
     is_c = source[-2:] == ".c" or source[-2:] == ".i"
-    if is_c:
-        binary = source[:-2]
-        compile_symcc(args.library, source, binary, BITS, args.coverage)
+
+    if args.dfs:
+        dfs = True
     else:
-        binary = source
-        source = binary + ".c"
+        dfs = False
 
     if args.m32:
         BITS = 32
     elif args.m64:
         BITS = 64
+
+    if is_c:
+        binary = args.binary if args.binary else source[:-2]
+        object = source[:-2]
+        compile_symcc(args.library, source, binary, BITS, args.coverage)
+    else:
+        binary = source
+        object = source
+        source = binary + ".c"
     
     maxlen = None
     if args.maxlen:
         maxlen = args.maxlen
 
-    finishtime = 15
+    finishtime = 900
     if args.finish:
-        finishtime = args.finish * 60
+        finishtime = args.finish
     
     k = 1
     if args.kExecutions:
@@ -136,13 +143,12 @@ if __name__ == "__main__":
     root = Node([], "", [], [])
 
     # write metadata.xml to tests/
+    print("write metadata")
     write_metadata(source, "tests/" + stem, BITS)
 
 
     # write empty test case for testcov
-    if args.verbose:
-        print("write empty testcase...")
-
+    print("write empty testcase...")
     write_testcase(None, "tests/" + stem, iteration)
 
 
@@ -168,7 +174,7 @@ if __name__ == "__main__":
             if args.verbose:
                 print("selecting...")
 
-            node = root.select(BFS)
+            node = root.select(dfs)
 
             # handle is_leaf
             if node.is_leaf:
@@ -187,7 +193,8 @@ if __name__ == "__main__":
                 continue
             else:
                 # sample at the path, the input prefix should be shown on the right
-                print("?", node.path.ljust(32), "input: " + prefix.hex())
+                if not args.quiet:
+                    print("?", node.path.ljust(32), "input: " + prefix.hex())
 
             # adapt maximum trace length
             if args.adaptive or not args.maxlen:
@@ -211,13 +218,19 @@ if __name__ == "__main__":
                 if args.verbose:
                     print("executing", binary)
 
+                if args.quiet:
+                    traceid = "trace"
+                else:
+                    traceid = ntracefile
+
                 code, outs, errs, symcc_log, verifier_out = execute_with_input(binary, prefix, "traces/" + stem, ntracefile, args.timeout, maxlen)
 
                 # handle code
-                if -31 <= code and code < 0:
-                    print("signal: ", signal.Signals(-code).name)
-                elif code != 0:
-                    print("return code: ", code)
+                if args.verbose:
+                    if -31 <= code and code < 0:
+                        print("signal: ", signal.Signals(-code).name)
+                    elif code != 0:
+                        print("return code: ", code)
 
                 # handle outs
                 if outs:
@@ -230,8 +243,8 @@ if __name__ == "__main__":
                 if errs:
                     if args.verbose:
                         print("stderr:")
-                    for line in errs:
-                        print(line.decode("utf-8").strip())
+                        for line in errs:
+                            print(line.decode("utf-8").strip())
 
                 """ 4. readout trace from file """
                 try:
@@ -284,14 +297,17 @@ if __name__ == "__main__":
                     if not args.error or code == 1:
                         if args.verbose:
                             print("write testcase", verifier_out)
-
+                        else:
+                            print("write testcase", ntestcases)
                         write_testcase(verifier_out, "tests/" + stem, iteration)
                         ntestcases += 1
                         # new path found and integrated into the tree
-                        print("+", leaf.path)
+                        if not args.quiet:
+                            print("+", leaf.path)
 
                         # handle error case
                         if last == "error" and args.error:
+                            print("write testcase", ntestcases, "(error found)")
                             write_testcase(verifier_out, "tests/" + stem, iteration)
                             reach_error = True
                             print("reach_error() detected.")
@@ -299,7 +315,8 @@ if __name__ == "__main__":
 
                 elif not leaf.path.startswith(node.path):
                     # path failed to preserve the prefix chosen (approximate sampler)
-                    print("!", leaf.path)
+                    if not args.quiet:
+                        print("!", leaf.path)
 
             # abort if the error case is detected
             if last == "error" and args.error:
@@ -315,8 +332,9 @@ if __name__ == "__main__":
         except Exception as e:
             if args.verbose:
                 print()
-                print("current tree")
-                root.pp_legend()
+                if not args.quiet:
+                    print("current tree")
+                    root.pp_legend()
             raise e
 
 
@@ -334,11 +352,12 @@ if __name__ == "__main__":
 
     # compute coverage information
     if args.coverage:
-        stem = os.path.basename(binary)
+        print("computing coverage")
+        stem = os.path.basename(object)
         gcda = stem + ".gcda"
         gcov(gcda)
         try_remove(gcda)
-        try_remove("__VERIFIER.gcda")
+        try_remove("Verifier.gcda")
 
     # print the error score
     if args.error and reach_error:

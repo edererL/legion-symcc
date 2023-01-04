@@ -14,7 +14,9 @@ def parse_arguments():
 
     parser.add_argument("file", help="C source file")
 
+    parser.add_argument("-b", "--binary", help="specify binary file name (default: C file without extension)")
     parser.add_argument("-c", "--coverage", action="store_true", help="generate coverage information")
+    parser.add_argument("-d", "--dfs", type=bool, default=True, help="determine the selection strategy")
     parser.add_argument("-e", "--error", action="store_true", help="execute in cover-error mode")
     parser.add_argument("-k", dest="kExecutions", type=int, help="number of executions per solver solution (default: 1)")
     parser.add_argument("-r", "--rho", type=int, help="exploration factor (default: 1)")
@@ -25,10 +27,10 @@ def parse_arguments():
     parser.add_argument("-64", dest="m64", action="store_true", help="compile with -m64 (override platform default)")
     parser.add_argument("-32", dest="m32", action="store_true", help="compile with -m32 (override platform default)")
     parser.add_argument("-i", "--iterations", type=int, default=None, help="number of iterations (samples to generate)")
-    parser.add_argument("-f", "--finish", type=int, default=None, help="finish program execution after n minutes (default: 15)")
+    parser.add_argument("-f", "--finish", type=int, default=None, help="finish program execution after n seconds (default: 900)")
     parser.add_argument("-t", "--timeout", type=int, default=3, help="binary execution timeout in seconds (default: 3)")
     parser.add_argument("-m", "--maxlen", type=int, default=None, help="maximum trace length (default: none)")
-    parser.add_argument("-a", "--adaptive", type=bool, default=False, help="adaptively increase maximum trace length (default: true if -m is not given")
+    parser.add_argument("-a", "--adaptive", type=bool, default=False, help="adaptively increase maximum trace length (default: true if -m is not given)")
     parser.add_argument("-L", dest="library", default="lib", help="location of SymCC compiler and runtime libraries")
     parser.add_argument("-T", "--testcov", action="store_true", help="run testcov (implies -z)")
 
@@ -140,6 +142,7 @@ def gcov(gcda):
     """Invoke gcov to compute coverage"""
 
     cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
+    print(*cmd)
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
     for line in proc.stdout.readlines():

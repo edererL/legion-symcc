@@ -120,7 +120,7 @@ class Node:
             return None
 
 
-    def select(self, bfs):
+    def select(self, dfs):
         """Select the most interesting node"""
 
         if self.is_phantom:
@@ -129,7 +129,7 @@ class Node:
             if self.is_leaf:
                 return self
             else:
-                if bfs:
+                if dfs:
                     options = [self.yes.tree, self.no.tree]
                 else:
                     options = [self.here, self.yes.tree, self.no.tree]
@@ -154,7 +154,7 @@ class Node:
             if node is self:
                 return node
             else:
-                return node.select(bfs)
+                return node.select(dfs)
 
 
     def pp_legend(self):

@@ -16,7 +16,7 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
     """Compile Legion/SymCC and the required components"""
 
     cmd = ["clang"]
-    cmd.extend(["-Xclang", "-load", "-Xclang", libs + "/libSymbolize.so"])
+    cmd.extend(["-fpass-plugin=" + libs + "/libSymbolize.so"])
 
     if bits == 32:
         rpath = libs + "32"
