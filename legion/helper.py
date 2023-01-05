@@ -7,42 +7,39 @@ import random
 import os
 
 
+""" methods """
 def parse_arguments():
-    """Parse all the arguments and return args"""
+    """ Parse all the comitted command-line arguments and return them """
 
     parser = argparse.ArgumentParser(description="Legion/SymCC")
 
     parser.add_argument("file", help="C source file")
-
+    parser.add_argument("-a", "--adaptive", type=bool, default=False, help="adaptively increase maximum trace length (default: true if -m is not given)")
     parser.add_argument("-b", "--binary", help="specify binary file name (default: C file without extension)")
     parser.add_argument("-c", "--coverage", action="store_true", help="generate coverage information")
     parser.add_argument("-d", "--dfs", type=bool, default=True, help="determine the selection strategy")
     parser.add_argument("-e", "--error", action="store_true", help="execute in cover-error mode")
+    parser.add_argument("-f", "--finish", type=int, default=None, help="finish program execution after n seconds (default: 900)")
+    parser.add_argument("-i", "--iterations", type=int, default=None, help="number of iterations (samples to generate)")
     parser.add_argument("-k", dest="kExecutions", type=int, help="number of executions per solver solution (default: 1)")
+    parser.add_argument("-L", dest="library", default="lib", help="location of SymCC compiler and runtime libraries")
+    parser.add_argument("-m", "--maxlen", type=int, default=None, help="maximum trace length (default: none)")
+    parser.add_argument("-q", "--quiet", action="store_true", help="less output")
     parser.add_argument("-r", "--rho", type=int, help="exploration factor (default: 1)")
     parser.add_argument("-s", "--seed", type=int, default=0, help="random seed")
-    parser.add_argument("-q", "--quiet", action="store_true", help="less output")
+    parser.add_argument("-t", "--timeout", type=int, default=3, help="binary execution timeout in seconds (default: 3)")
+    parser.add_argument("-T", "--testcov", action="store_true", help="run testcov (implies -z)")
     parser.add_argument("-V", "--verbose", action="store_true", help="more output")
     parser.add_argument("-z", "--zip", action="store_true", help="zip test suite")
     parser.add_argument("-64", dest="m64", action="store_true", help="compile with -m64 (override platform default)")
     parser.add_argument("-32", dest="m32", action="store_true", help="compile with -m32 (override platform default)")
-    parser.add_argument("-i", "--iterations", type=int, default=None, help="number of iterations (samples to generate)")
-    parser.add_argument("-f", "--finish", type=int, default=None, help="finish program execution after n seconds (default: 900)")
-    parser.add_argument("-t", "--timeout", type=int, default=3, help="binary execution timeout in seconds (default: 3)")
-    parser.add_argument("-m", "--maxlen", type=int, default=None, help="maximum trace length (default: none)")
-    parser.add_argument("-a", "--adaptive", type=bool, default=False, help="adaptively increase maximum trace length (default: true if -m is not given)")
-    parser.add_argument("-L", dest="library", default="lib", help="location of SymCC compiler and runtime libraries")
-    parser.add_argument("-T", "--testcov", action="store_true", help="run testcov (implies -z)")
-
-    # idea: integrate a compile flag
-    # parser.add_argument("-c", "--compile", action='store_true', help='compile binary (requires modified symcc on path, otherwise assume it has been compiled before)')
 
     args = parser.parse_args()
     return args
 
 
 def sha256sum(file):
-    """"Compute the sha256 hash of file and return it"""
+    """" Compute the sha256 hash sum of a commited file and return it """
 
     res = sp.run(["sha256sum", file], stdout=sp.PIPE)
     out = res.stdout.decode("utf-8")
@@ -50,7 +47,7 @@ def sha256sum(file):
 
 
 def write_metadata(file, path, BITS):
-    """Write the required metadata to tests/"""
+    """ Write the required metadata.xml file to tests/ """
 
     sp.run(["mkdir", "-p", path])
 
@@ -74,14 +71,14 @@ def write_metadata(file, path, BITS):
 
 
 def interrupt(number, frame):
-    """Handle signal and stop iteration"""
+    """ Handle SIGTERM signal and raise a StopIteration exception """
 
     print("received SIGTERM")
     raise StopIteration()
 
 
 def write_testcase(source, path, identifier):
-    """Write test case to the tests/"""
+    """ Write the concrete test case to tests/ """
 
     sp.run(["mkdir", "-p", path])
     path = path + "/" + str(identifier) + ".xml"
@@ -100,7 +97,7 @@ def write_testcase(source, path, identifier):
 
 
 def write_smt2_trace(ast, decls, path, identifier):
-    """write the smt2 trace"""
+    """ Write traces in a smt2 format """
 
     decls = [x.decl().sexpr() for _, x in decls.items()]
     decls = sorted(decls)
@@ -117,29 +114,29 @@ def write_smt2_trace(ast, decls, path, identifier):
 
 
 def constraint_from_string(ast, decls):
-    """Return a string in smt2 format"""
+    """ Convert a string in smt2 format and return it """
     try:
         return z3.parse_smt2_string(ast, decls=decls)
     except:
-        # write log if exception occurred
+        # create a log file if an exception occurred
         write_smt2_trace(ast, decls, "log", "error")
         raise ValueError("Z3 parser error", ast)
 
 
 def int_to_bytes(value, nbytes):
-    """Converts an integer into an array of n bytes representing the integer"""
+    """ Convert an integer into an array of n bytes and return it """
 
     return value.to_bytes(nbytes, "little")
 
 
 def random_bytes(nbytes):
-    """Generate n random bytes and return them"""
+    """ Generate n random bytes and return them """
 
     return int_to_bytes(random.getrandbits(nbytes * 8), nbytes)
 
 
 def gcov(gcda):
-    """Invoke gcov to compute coverage"""
+    """ Invoke gcov to compute and analyze code coverage """
 
     cmd = ["llvm-cov", "gcov", "-b", "-n", gcda]
     print(*cmd)
@@ -154,7 +151,7 @@ def gcov(gcda):
 
 
 def try_remove(path):
-    """Try to remove path"""
+    """ Try to remove a path from the os """
 
     try:
         os.remove(path)

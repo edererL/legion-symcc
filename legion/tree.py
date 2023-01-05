@@ -2,38 +2,39 @@
 import z3
 import random
 from math import inf
-
 from legion.helper import constraint_from_string
 from Legion import uct, naive
 
 
 class Arm:
+    """ This class is employed to handle the score and reward of Nodes  """
 
     def __init__(self, node):
+        """ Initialize instances of the Arm class """
+        
         self.node = node
-
         self.reward = 0
         self.selected = 0
 
 
     def score(self, N):
-        """Computes the score in a uct way"""
+        """Compute a node's score in a uct way and retrun it"""
 
         if self.node.is_leaf:
+            # handle leaf nodes
             return -inf
         else:
+            # apply uct method
             return uct(self.reward, self.selected, N)
-
-
-    #def descr(self, N):
-    #    """Describe the uct function and its parameters"""
-    #    return "uct(%d, %d, %d)" % (self.reward, self.selected, N)
 
 
 
 class Node:
+    """ This class is employed to represent program states as Nodes in a tree structured space """
 
     def __init__(self, target, path, pos, neg, parent=None):
+        """ Initialize instances of the Node class """
+        
         self.site = None
         self.target = target
         self.nbytes = len(target)
@@ -46,13 +47,12 @@ class Node:
         self.sampler = None
         self.is_phantom = True
         self.is_leaf = False
-
         self.here = Arm(self) 
         self.tree = Arm(self)
 
 
     def propagate(self, reward, selected, here=True):
-        """Propagate reward and selected"""
+        """ Back-propagate the values of reward and selected to the remaining tree structure """
 
         if here:
             self.here.reward += reward
@@ -66,22 +66,21 @@ class Node:
 
 
     def insert(self, trace, is_complete, decls):
-        """Insert new nodes into the tree"""
+        """ Insert new nodes into the tree structure and return them """
 
         base = None
         node = self
 
         for index in range(len(trace)):
-
             was_phantom = node.is_phantom
             site, target, polarity, phi = trace[index]
 
             if was_phantom:
+                # Covert the path constraints in a smt2 format
                 phi = constraint_from_string(phi, decls)[0]
-
+                
                 node.is_phantom = False
                 node.site = site
-
                 node.yes = Node(target, node.path + "1", node.pos + [phi], node.neg, parent=node)
                 node.no = Node(target, node.path + "0", node.pos, node.neg + [phi], parent=node)
 
@@ -93,6 +92,7 @@ class Node:
         if not base and node.is_phantom:
             base = node
 
+        # handle phantom and leaf node heuristic
         if is_complete:
             node.is_phantom = False
             node.is_leaf = True
@@ -101,7 +101,7 @@ class Node:
 
 
     def sample(self):
-        """Sample a node"""
+        """ Compute a input prefix that might be path presevering by use of the naive() mathod and return it """
 
         if not self.target:
             return b""  # no bytes to sample
@@ -110,7 +110,6 @@ class Node:
             solver = z3.Optimize()
             solver.add(self.pos)
             solver.add([z3.Not(phi) for phi in self.neg])
-
             self.sampler = naive(solver, self.target)
 
         try:
@@ -121,17 +120,22 @@ class Node:
 
 
     def select(self, dfs):
-        """Select the most interesting node"""
+        """ Select the a promising program state by use of a well-defined score function and return it """
 
         if self.is_phantom:
+            # handle phantom nodes
             return self            
         else:
+            # handle leaf nodes
             if self.is_leaf:
                 return self
             else:
+                # Legion/SymCC's selection strategy
                 if dfs:
+                    # depth-first selection
                     options = [self.yes.tree, self.no.tree]
                 else:
+                    # alternative selection strategy
                     options = [self.here, self.yes.tree, self.no.tree]
 
             N = self.tree.selected
@@ -139,8 +143,8 @@ class Node:
             best = -inf
 
             for arm in options:
+                # depict appropriate candidates by use of the score function
                 cur = arm.score(N)
-
                 if cur == best:
                     candidates.append(arm)
                     continue
@@ -158,7 +162,7 @@ class Node:
 
 
     def pp_legend(self):
-        """Pretty print the legend"""
+        """ Print a legend on the console """
 
         print("              local              subtree")
         print("    score  win  try      score  win  try    path")
@@ -166,13 +170,13 @@ class Node:
 
 
     def pp(self):
-        """Pretty print the final output"""
+        """ Print the final output on the console """
 
         if not self.parent:
             # root node
             key = "*"
         elif self.is_phantom:
-            # phantom node which has never been hit explicitly but we know it is there as the negation of another known node
+            # phantom node
             key = "?"
         elif self.is_leaf:
             # leaf node
@@ -183,6 +187,7 @@ class Node:
 
         N = self.tree.selected
 
+        # print score, reward and path
         if True or key != ".":
             a = "{:7.2f} {:4d} {:4d}".format(
                 self.here.score(N), self.here.reward, self.here.selected

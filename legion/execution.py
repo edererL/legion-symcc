@@ -2,18 +2,19 @@
 import subprocess as sp
 import threading
 import z3
-
 from legion.helper import random_bytes
 
 
+""" methods """
 def run(*args):
-    """Run arguments"""
+    """ Run the comitted arguments """
+    
     print(*args)
     return sp.run(args, stderr=sp.STDOUT)
 
 
 def compile_symcc(libs, source, binary, bits, coverage=False):
-    """Compile Legion/SymCC and the required components"""
+    """ Compile SymCC and all required components """
 
     cmd = ["clang"]
     cmd.extend(["-fpass-plugin=" + libs + "/libSymbolize.so"])
@@ -43,25 +44,28 @@ def compile_symcc(libs, source, binary, bits, coverage=False):
 
 
 def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None):
-    """Execute the binary with samples and return obtained information"""
+    """ Execute the binary with concrete input values and return all obtained information """
 
     def kill():
-        """ Handle and kill the process"""
+        """ Terminate a process using the SIGKILL signal """
         
         print("killed")
         process.kill()
 
+
     sp.run(["mkdir", "-p", path])
 
-    # inputs
+    # concrete input values
     verifier_out = path + "/" + str(identifier) + ".out.txt"
-    # traces
+    
+    # trace files
     symcc_log = path + "/" + str(identifier) + ".txt"
 
     env = {}
     env["VERIFIER_STDOUT"] = verifier_out
     env["SYMCC_LOG_FILE"] = symcc_log
 
+    # handle timouts and oversized trace lengths
     if timeout:
         env["SYMCC_TIMEOUT"] = str(timeout)
         timeout += 1  # let the process have 1s of graceful shutdown
@@ -69,13 +73,13 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
         env["SYMCC_MAX_TRACE_LENGTH"] = str(maxlen)
 
 
-    # create a process
+    # concretely execute the binary in a new process
     process = sp.Popen(binary, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, close_fds=True, env=env)
 
-    # use prefix as input
+    # use the prcomputed input prefix as a component of the concrete inputs
     process.stdin.write(data)
 
-    # provide random input as further necessary
+    # provide further inputs to complement the prefix
     timer = threading.Timer(timeout, kill)
     try:
         timer.start()
@@ -89,7 +93,7 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
 
     process.wait()
 
-    # force reading entire output
+    # readout all information from the concrete execution
     code = process.returncode
     outs = list(process.stdout.readlines())
     errs = list(process.stderr.readlines())
@@ -98,7 +102,7 @@ def execute_with_input(binary, data, path, identifier, timeout=None, maxlen=None
 
 
 def trace_from_file(trace):
-    """Readout the trace from file and return is_complete, last, result and decls"""
+    """ Readout the execution path and further information from the respective trace file and return them """
 
     with open(trace, "rt") as stream:
         nbytes = 0
@@ -113,29 +117,25 @@ def trace_from_file(trace):
         last = None
 
         def flush():
-            """clear the internal buffer of the file"""
+            """ Store pending events and assertions and clear the list of pending entries """
 
             if pending:
-                # constraint = constraint_from_string(ast, decls)
                 event = (site, target, polarity)
                 result.append(event)
-
                 ast = "(assert " + " ".join(pending) + ")"
                 constraints.append(ast)
 
                 pending.clear()
 
-        # readout line by line
+        # readout trace file line by line
         for line in stream.readlines():
             line = line.strip()
-
             if not line:
                 continue
-            
             last = line
             assert is_complete is None
 
-            # handle the different components of the trace file
+            # handle the different components of a trace file
             if line.startswith("in  "):
                 flush()
 
@@ -185,17 +185,11 @@ def trace_from_file(trace):
 
             elif line.startswith("timeout"):
                 pending.clear()
-                #flush()
                 last = line
                 is_complete = False
 
             else:
                 pending.append(line)
-
-        #flush()
-
-        #ast = "\n".join(constraints)
-        #constraints = constraint_from_string(ast, decls)
 
         for i in range(len(result)):
             (site, target, polarity) = result[i]
@@ -205,7 +199,7 @@ def trace_from_file(trace):
 
 
 def zip_files(file, paths):
-    """Zip files"""
+    """ Pool files in a zip-directory """
     
     run("zip", "-r", file, *paths)
     print()
