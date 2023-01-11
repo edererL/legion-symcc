@@ -69,7 +69,7 @@ python3 Legion.py examples/simple.c
 6. Finish program execution after n iterations, `--iterations n`;
 7. Determine the number of executions per solver solution, `--kExecutions n`;
 8. Define the exploration factor (rho), e.g. `--rho 0`;
-9. Determine the binary execution timeout (n seconds), `--timeout n`;
+9. Determine the binary execution timeout (n seconds), `--timeout n`
 
 ## Interpreting the Output
 
@@ -131,5 +131,7 @@ The path of the node is shown on the right.
 [Toby Murray](https://github.com/tobycmurray)
 
 [Benjamin Rubinstein](https://github.com/brubinstein)
+
+[Van-Thuan Pham](https://github.com/thuanpv)
 
 [Lukas Ederer](https://github.com/edererL)
