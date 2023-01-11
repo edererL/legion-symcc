@@ -5,6 +5,8 @@ Fresh implementation of the Legion algorithm [1] on top of SyMCC.
 1. Dongge Liu, Gidon Ernst, Toby Murray, Ben Rubinstein: Legion: Best-First Concolic Testing. ASE 2020,
    <https://doi.org/10.1145/3324884.3416629>
 
+Legion: <https://github.com/Alan32Liu/Legion>
+
 ## License
 
 This repository contains a copy of SymCC source code in `runtime` and `compiler`, which is licensed under GPL (see `LICENSE.symcc`),
@@ -15,16 +17,19 @@ with the addition of a new simple backend in `runtime/Runtime.{cpp,h}` by the au
 ## Usage
 
 Compile SymCC compiler pass and runtime libraries
-
-    make
+```shell
+make
+```
 
 Get help (note: a bunch of paths are hardcoded)
-
-    ./Legion.py -h
+```shell
+python3 Legion.py -h
+```
 
 Simple example
-
-    ./Legion.py examples/simple.c
+```shell
+python3 Legion.py examples/simple.c
+```
 
 ## Dependencies & Installation
 
@@ -53,6 +58,18 @@ Simple example
         make docker
 
     Run `Legion.py -L ubuntu2004/lib` to make use of this build (it will then use `ubuntu2004/lib32` for 32bit mode)
+
+## Hyperparameters & optional flags
+
+1. Adaptive maximum trace length, `--adaptive True/False`;
+2. Execute in Cover-Branches mode, `--coverage`;
+3. Choose the selection strategy, `--dfs True/False`;
+4. Execute in Cover-Error mode, `--error`;
+5. Finish program execution after n seconds, `--finish n`;
+6. Finish program execution after n iterations, `--iterations n`;
+7. Determine the number of executions per solver solution, `--kExecutions n`;
+8. Define the exploration factor (rho), e.g. `--rho 0`;
+9. Determine the binary execution timeout (n seconds), `--timeout n`;
 
 ## Interpreting the Output
 
@@ -102,3 +119,17 @@ The path of the node is shown on the right.
     *    1    1       2    2
     $    1    1       1    1    0
     $    0    0       0    0    1
+
+## Collaborators
+
+### Designers & Developers
+
+[Dongge Liu](https://github.com/Alan32Liu)
+
+[Gidon Ernst](https://github.com/gernst)
+
+[Toby Murray](https://github.com/tobycmurray)
+
+[Benjamin Rubinstein](https://github.com/brubinstein)
+
+[Lukas Ederer](https://github.com/edererL)
